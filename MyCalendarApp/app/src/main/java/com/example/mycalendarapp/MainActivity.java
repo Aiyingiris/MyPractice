@@ -204,7 +204,7 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
 
             dateDisplay.setText(DateUtils.formatDate(selectedDate.getTimeInMillis()));
 
-            // 使用选中的日期作为基础，而不是当前时间
+            // 使用选中的日期作为基础
             final Calendar startTime = (Calendar) selectedDate.clone();
             final Calendar endTime = (Calendar) selectedDate.clone();
             endTime.add(Calendar.HOUR_OF_DAY, 1);
@@ -219,16 +219,23 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
             startTimeBtn.setText(DateUtils.formatTime(startTime.getTimeInMillis()));
             endTimeBtn.setText(DateUtils.formatTime(endTime.getTimeInMillis()));
 
-            startTimeBtn.setOnClickListener(v -> showTimePickerDialog(startTime, time -> {
-                startTimeBtn.setText(time);
+            // 修复：确保时间选择器正确更新时间
+            startTimeBtn.setOnClickListener(v -> showTimePickerDialog(startTime, (hourOfDay, minute) -> {
+                startTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                startTime.set(Calendar.MINUTE, minute);
+                startTimeBtn.setText(DateUtils.formatTime(startTime.getTimeInMillis()));
+
+                // 确保结束时间不早于开始时间
                 if (endTime.before(startTime)) {
                     endTime.setTimeInMillis(startTime.getTimeInMillis() + 3600000);
                     endTimeBtn.setText(DateUtils.formatTime(endTime.getTimeInMillis()));
                 }
             }));
 
-            endTimeBtn.setOnClickListener(v -> showTimePickerDialog(endTime, time -> {
-                endTimeBtn.setText(time);
+            endTimeBtn.setOnClickListener(v -> showTimePickerDialog(endTime, (hourOfDay, minute) -> {
+                endTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                endTime.set(Calendar.MINUTE, minute);
+                endTimeBtn.setText(DateUtils.formatTime(endTime.getTimeInMillis()));
             }));
 
             builder.setPositiveButton("确定", (dialog, which) -> {
@@ -271,60 +278,13 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
         }
     }
 
-    // 修复：添加调试信息并放宽时间检查
-    private void setAlarm(Event event) {
-        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        if (alarmManager == null) {
-            Toast.makeText(this, "无法获取闹钟服务", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        Intent intent = new Intent(this, AlarmReceiver.class);
-        intent.putExtra("eventTitle", event.getTitle());
-
-        // 添加调试信息
-        int eventId = event.getId();
-        long remindTime = event.getRemindTime();
-        long currentTime = System.currentTimeMillis();
-
-        // 调试输出
-        android.util.Log.d("AlarmSetup", "Event ID: " + eventId);
-        android.util.Log.d("AlarmSetup", "Remind Time: " + remindTime);
-        android.util.Log.d("AlarmSetup", "Current Time: " + currentTime);
-        android.util.Log.d("AlarmSetup", "Time Difference: " + (remindTime - currentTime) + "ms");
-
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(
-                this,
-                eventId,
-                intent,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
-        );
-
-        // 放宽时间检查：允许设置过去1小时内的闹钟（用于测试）
-        if (remindTime > currentTime - 3600000) {  // 允许过去1小时内的闹钟
-            try {
-                alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        remindTime,
-                        pendingIntent
-                );
-                android.util.Log.d("AlarmSetup", "闹钟设置成功");
-            } catch (Exception e) {
-                android.util.Log.e("AlarmSetup", "设置闹钟失败: " + e.getMessage());
-                Toast.makeText(this, "设置闹钟失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            android.util.Log.d("AlarmSetup", "提醒时间在过去，不设置闹钟");
-        }
-    }
-
-    private void showTimePickerDialog(Calendar calendar, TimeSetListener listener) {
+    // 修复：修改时间选择器回调接口
+    private void showTimePickerDialog(Calendar calendar, TimePickerCallback callback) {
         try {
             TimePickerDialog timePicker = new TimePickerDialog(
                     this,
                     (view, hourOfDay, minute) -> {
-                        String time = String.format("%02d:%02d", hourOfDay, minute);
-                        listener.onTimeSet(time);
+                        callback.onTimeSet(hourOfDay, minute);
                     },
                     calendar.get(Calendar.HOUR_OF_DAY),
                     calendar.get(Calendar.MINUTE),
@@ -335,6 +295,11 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
             Toast.makeText(this, "打开时间选择器失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
             e.printStackTrace();
         }
+    }
+
+    // 修复：添加新的回调接口
+    public interface TimePickerCallback {
+        void onTimeSet(int hourOfDay, int minute);
     }
 
     private void showViewEventDialog(Event event) {
@@ -405,16 +370,22 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
             startTimeBtn.setText(DateUtils.formatTime(startTime.getTimeInMillis()));
             endTimeBtn.setText(DateUtils.formatTime(endTime.getTimeInMillis()));
 
-            startTimeBtn.setOnClickListener(v -> showTimePickerDialog(startTime, time -> {
-                startTimeBtn.setText(time);
+            // 修复：确保时间选择器正确更新时间
+            startTimeBtn.setOnClickListener(v -> showTimePickerDialog(startTime, (hourOfDay, minute) -> {
+                startTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                startTime.set(Calendar.MINUTE, minute);
+                startTimeBtn.setText(DateUtils.formatTime(startTime.getTimeInMillis()));
+
                 if (endTime.before(startTime)) {
                     endTime.setTimeInMillis(startTime.getTimeInMillis() + 3600000);
                     endTimeBtn.setText(DateUtils.formatTime(endTime.getTimeInMillis()));
                 }
             }));
 
-            endTimeBtn.setOnClickListener(v -> showTimePickerDialog(endTime, time -> {
-                endTimeBtn.setText(time);
+            endTimeBtn.setOnClickListener(v -> showTimePickerDialog(endTime, (hourOfDay, minute) -> {
+                endTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
+                endTime.set(Calendar.MINUTE, minute);
+                endTimeBtn.setText(DateUtils.formatTime(endTime.getTimeInMillis()));
             }));
 
             builder.setPositiveButton("保存", (dialog, which) -> {
@@ -481,6 +452,30 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
         }
     }
 
+    private void setAlarm(Event event) {
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager == null) return;
+
+        Intent intent = new Intent(this, AlarmReceiver.class);
+        intent.putExtra("eventTitle", event.getTitle());
+
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                this,
+                (int) event.getId(),
+                intent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+        );
+
+        long remindTime = event.getRemindTime();
+        if (remindTime > System.currentTimeMillis()) {
+            alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    remindTime,
+                    pendingIntent
+            );
+        }
+    }
+
     private void updateAlarm(Event event) {
         cancelAlarm(event);
         setAlarm(event);
@@ -493,7 +488,7 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
         Intent intent = new Intent(this, AlarmReceiver.class);
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 this,
-                event.getId(),
+                (int) event.getId(),
                 intent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
