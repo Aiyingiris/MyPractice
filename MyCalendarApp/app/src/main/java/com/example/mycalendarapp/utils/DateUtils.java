@@ -5,6 +5,8 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
+import com.ibm.icu.util.ChineseCalendar;
+
 public class DateUtils {
 
     // 格式化日期为 "yyyy年MM月dd日"
@@ -41,39 +43,214 @@ public class DateUtils {
         return calendar.getTimeInMillis();
     }
 
-    // --- 扩展要求：农历相关实现 ---
+    // --- 真实农历功能实现 ---
 
     /**
-     * 获取简化的农历字符串
-     * 注意：完整的农历算法代码量很大，这里为了课程设计演示，
-     * 使用一个简化的模拟逻辑，或者你可以引入开源库如 'ChineseCalendar'
+     * 获取完整的农历日期字符串（使用ICU4J库）
+     * 格式："农历yyyy年MM月dd日"
      */
     public static String getLunarDate(int year, int month, int day) {
-        // 实际开发中，这里通常会调用一个包含1900-2100年数据的 Lunar 类
-        // 下面是一个返回演示文本的示例逻辑
+        try {
+            // 创建公历日历并设置日期
+            Calendar gregorianCal = Calendar.getInstance();
+            gregorianCal.set(year, month - 1, day); // month is 0-based in Calendar
 
-        // 模拟逻辑：假设1月1日是农历正月初一（实际不是）
-        Calendar cal = Calendar.getInstance();
-        cal.set(year, month - 1, day); // month is 0-based in Calendar
+            // 创建农历日历并同步时间
+            ChineseCalendar lunarCal = new ChineseCalendar();
+            lunarCal.setTime(gregorianCal.getTime());
 
-        // 这里为了演示，我们硬编码几个节日，真实逻辑需查表
-        int dayOfYear = cal.get(Calendar.DAY_OF_YEAR);
+            // 设置中文语言环境
+            Locale chineseLocale = Locale.SIMPLIFIED_CHINESE;
 
-        if (month == 1 && day == 1) return "元旦";
-        if (month == 2 && day == 14) return "情人";
+            // 使用ICU的SimpleDateFormat格式化农历日期
+            com.ibm.icu.text.SimpleDateFormat lunarSdf = new com.ibm.icu.text.SimpleDateFormat("农历yyyy年MM月dd日", chineseLocale);
+            lunarSdf.setCalendar(lunarCal);
 
-        // 这里的返回值只是示例，实际需要复杂的农历计算类
-        // 如果你想省事，可以返回 "农历" + day;
-        return "腊" + (30 - day); // 仅作演示数据
+            // 获取格式化的农历日期
+            String lunarDate = lunarSdf.format(lunarCal);
+
+            // 替换数字月份为中文月份（如"01"->"正月"）
+            lunarDate = replaceLunarMonth(lunarDate);
+
+            return lunarDate;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
     }
 
     /**
-     * (推荐) 真实的农历转换参考逻辑
-     * 如果要实现完整功能，请创建一个 Lunar 类，包含 LunarYearData 数组
-     * 然后通过位运算计算。鉴于篇幅，这里提供接口设计。
+     * 获取农历月份的第一天信息
+     * @return true 如果是农历月份的第一天
      */
-    public static String getChineseDate(Calendar calendar) {
-        // 调用外部库或者自己实现的 LunarCalendar.convert(calendar)
-        return "农历示例";
+    public static boolean isLunarMonthFirstDay(int year, int month, int day) {
+        try {
+            // 创建公历日历并设置日期
+            Calendar gregorianCal = Calendar.getInstance();
+            gregorianCal.set(year, month - 1, day); // month is 0-based in Calendar
+
+            // 创建农历日历并同步时间
+            ChineseCalendar lunarCal = new ChineseCalendar();
+            lunarCal.setTime(gregorianCal.getTime());
+
+            // 判断是否是农历月份的第一天
+            return lunarCal.get(ChineseCalendar.DAY_OF_MONTH) == 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * 获取简短的农历日期字符串
+     * 格式："正月初一"
+     */
+    public static String getShortLunarDate(int year, int month, int day) {
+        try {
+            // 创建公历日历并设置日期
+            Calendar gregorianCal = Calendar.getInstance();
+            gregorianCal.set(year, month - 1, day); // month is 0-based in Calendar
+
+            // 创建农历日历并同步时间
+            ChineseCalendar lunarCal = new ChineseCalendar();
+            lunarCal.setTime(gregorianCal.getTime());
+
+            // 获取农历年、月、日
+            int lunarMonth = lunarCal.get(ChineseCalendar.MONTH) + 1; // 转换为1-based
+            int lunarDay = lunarCal.get(ChineseCalendar.DAY_OF_MONTH);
+            boolean isLeapMonth = lunarCal.get(ChineseCalendar.IS_LEAP_MONTH) == 1;
+
+            // 生成简短的农历日期字符串
+            String shortLunarDate = (isLeapMonth ? "闰" : "") + getChineseMonth(lunarMonth) + getChineseDay(lunarDay);
+
+            return shortLunarDate;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
+    /**
+     * 获取农历月份名称
+     */
+    public static String getLunarMonthName(int year, int month, int day) {
+        try {
+            // 创建公历日历并设置日期
+            Calendar gregorianCal = Calendar.getInstance();
+            gregorianCal.set(year, month - 1, day); // month is 0-based in Calendar
+
+            // 创建农历日历并同步时间
+            ChineseCalendar lunarCal = new ChineseCalendar();
+            lunarCal.setTime(gregorianCal.getTime());
+
+            // 获取农历月份
+            int lunarMonth = lunarCal.get(ChineseCalendar.MONTH) + 1; // 转换为1-based
+            boolean isLeapMonth = lunarCal.get(ChineseCalendar.IS_LEAP_MONTH) == 1;
+
+            // 生成农历月份名称
+            return (isLeapMonth ? "闰" : "") + getChineseMonth(lunarMonth);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
+    /**
+     * 获取农历日期名称（不包含月份）
+     */
+    public static String getLunarDayName(int year, int month, int day) {
+        try {
+            // 创建公历日历并设置日期
+            Calendar gregorianCal = Calendar.getInstance();
+            gregorianCal.set(year, month - 1, day); // month is 0-based in Calendar
+
+            // 创建农历日历并同步时间
+            ChineseCalendar lunarCal = new ChineseCalendar();
+            lunarCal.setTime(gregorianCal.getTime());
+
+            // 获取农历日期
+            int lunarDay = lunarCal.get(ChineseCalendar.DAY_OF_MONTH);
+
+            // 生成农历日期名称
+            return getChineseDay(lunarDay);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
+    /**
+     * 替换数字月份为中文月份
+     */
+    private static String replaceLunarMonth(String lunarDate) {
+        // 农历月份中文名称
+        String[] monthNames = {"正月", "二月", "三月", "四月", "五月", "六月",
+                "七月", "八月", "九月", "十月", "冬月", "腊月"};
+
+        // 替换数字月份
+        for (int i = 0; i < monthNames.length; i++) {
+            lunarDate = lunarDate.replace((i + 1) < 10 ? "0" + (i + 1) : "" + (i + 1), monthNames[i]);
+        }
+
+        return lunarDate;
+    }
+
+    /**
+     * 获取中文月份名称
+     */
+    private static String getChineseMonth(int month) {
+        String[] monthNames = {"正月", "二月", "三月", "四月", "五月", "六月",
+                "七月", "八月", "九月", "十月", "冬月", "腊月"};
+        return month >= 1 && month <= 12 ? monthNames[month - 1] : "";
+    }
+
+    /**
+     * 获取中文日期名称
+     */
+    private static String getChineseDay(int day) {
+        if (day < 1 || day > 30) return "";
+
+        String[] dayNames = {"初一", "初二", "初三", "初四", "初五", "初六", "初七", "初八", "初九", "初十",
+                "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
+                "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七", "廿八", "廿九", "三十"};
+        return dayNames[day - 1];
+    }
+
+    /**
+     * 获取农历年份的生肖
+     */
+    public static String getChineseZodiac(int year) {
+        String[] zodiacs = {"鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪"};
+        int zodiacIndex = (year - 1900) % 12;
+        if (zodiacIndex < 0) zodiacIndex += 12;
+        return zodiacs[zodiacIndex];
+    }
+
+    /**
+     * 从时间戳获取农历日期
+     */
+    public static String getLunarDate(long timeInMillis) {
+        try {
+            Calendar cal = Calendar.getInstance();
+            cal.setTimeInMillis(timeInMillis);
+            return getLunarDate(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
+    /**
+     * 从时间戳获取简短农历日期
+     */
+    public static String getShortLunarDate(long timeInMillis) {
+        try {
+            Calendar cal = Calendar.getInstance();
+            cal.setTimeInMillis(timeInMillis);
+            return getShortLunarDate(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1, cal.get(Calendar.DAY_OF_MONTH));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
     }
 }

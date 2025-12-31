@@ -27,7 +27,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
         notifyDataSetChanged();
     }
 
-    // 【添加】设置点击监听器
+    // 设置点击监听器
     public void setOnItemClickListener(OnItemClickListener listener) {
         this.onItemClickListener = listener;
     }
@@ -38,7 +38,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
         void onItemClick(Event event);
     }
 
-    // 【添加】设置长按监听器
+    // 设置长按监听器
     public void setOnItemLongClickListener(OnItemLongClickListener listener) {
         this.onItemLongClickListener = listener;
     }
@@ -69,14 +69,14 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
 
             holder.timeTv.setText(startTime + " - " + endTime);
 
-            // 【添加】设置点击监听
+            // 设置点击监听
             holder.itemView.setOnClickListener(v -> {
                 if (onItemClickListener != null) {
                     onItemClickListener.onItemClick(event);
                 }
             });
 
-            // 【添加】设置长按监听
+            // 设置长按监听
             holder.itemView.setOnLongClickListener(v -> {
                 if (onItemLongClickListener != null) {
                     onItemLongClickListener.onItemLongClick(event, position);

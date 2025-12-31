@@ -123,6 +123,7 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
         }
     }
 
+
     private void setMonthView() {
         monthYearText.setText(new SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(calendar.getTime()));
 
@@ -204,12 +205,10 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
 
             dateDisplay.setText(DateUtils.formatDate(selectedDate.getTimeInMillis()));
 
-            // 使用选中的日期作为基础
             final Calendar startTime = (Calendar) selectedDate.clone();
             final Calendar endTime = (Calendar) selectedDate.clone();
             endTime.add(Calendar.HOUR_OF_DAY, 1);
 
-            // 设置默认时间为当前时间
             Calendar now = Calendar.getInstance();
             startTime.set(Calendar.HOUR_OF_DAY, now.get(Calendar.HOUR_OF_DAY));
             startTime.set(Calendar.MINUTE, now.get(Calendar.MINUTE));
@@ -219,13 +218,11 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
             startTimeBtn.setText(DateUtils.formatTime(startTime.getTimeInMillis()));
             endTimeBtn.setText(DateUtils.formatTime(endTime.getTimeInMillis()));
 
-            // 修复：确保时间选择器正确更新时间
             startTimeBtn.setOnClickListener(v -> showTimePickerDialog(startTime, (hourOfDay, minute) -> {
                 startTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
                 startTime.set(Calendar.MINUTE, minute);
                 startTimeBtn.setText(DateUtils.formatTime(startTime.getTimeInMillis()));
 
-                // 确保结束时间不早于开始时间
                 if (endTime.before(startTime)) {
                     endTime.setTimeInMillis(startTime.getTimeInMillis() + 3600000);
                     endTimeBtn.setText(DateUtils.formatTime(endTime.getTimeInMillis()));
@@ -246,7 +243,6 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
                 }
 
                 try {
-                    // 使用选中的日期和时间
                     Event event = new Event(
                             title,
                             "Default Description",
@@ -257,9 +253,9 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
 
                     long eventId = dbHelper.addEvent(event);
                     if (eventId != -1) {
+                        event.setId((int) eventId);
                         setAlarm(event);
                         Toast.makeText(this, "日程已添加", Toast.LENGTH_SHORT).show();
-                        // 刷新当前选中日期的日程
                         onItemClick(selectedPosition, daysInMonth.get(selectedPosition));
                     } else {
                         Toast.makeText(this, "添加失败，请重试", Toast.LENGTH_SHORT).show();
@@ -278,7 +274,6 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
         }
     }
 
-    // 修复：修改时间选择器回调接口
     private void showTimePickerDialog(Calendar calendar, TimePickerCallback callback) {
         try {
             TimePickerDialog timePicker = new TimePickerDialog(
@@ -297,7 +292,6 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
         }
     }
 
-    // 修复：添加新的回调接口
     public interface TimePickerCallback {
         void onTimeSet(int hourOfDay, int minute);
     }
@@ -370,7 +364,6 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
             startTimeBtn.setText(DateUtils.formatTime(startTime.getTimeInMillis()));
             endTimeBtn.setText(DateUtils.formatTime(endTime.getTimeInMillis()));
 
-            // 修复：确保时间选择器正确更新时间
             startTimeBtn.setOnClickListener(v -> showTimePickerDialog(startTime, (hourOfDay, minute) -> {
                 startTime.set(Calendar.HOUR_OF_DAY, hourOfDay);
                 startTime.set(Calendar.MINUTE, minute);
@@ -452,6 +445,33 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
         }
     }
 
+    // 修复：确保闹钟正确更新
+    private void updateAlarm(Event event) {
+        // 先取消旧闹钟
+        cancelAlarm(event);
+        // 设置新闹钟
+        setAlarm(event);
+    }
+
+    // 修复：确保闹钟正确取消
+    private void cancelAlarm(Event event) {
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        if (alarmManager == null) return;
+
+        Intent intent = new Intent(this, AlarmReceiver.class);
+        intent.putExtra("eventTitle", event.getTitle()); // 必须添加与setAlarm相同的extra
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+                this,
+                event.getId(),
+                intent,
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
+        );
+
+        // 添加更详细的调试信息
+        android.util.Log.d("AlarmCancel", "取消闹钟 - Event ID: " + event.getId() + ", PendingIntent ID: " + event.getId());
+        alarmManager.cancel(pendingIntent);
+    }
+
     private void setAlarm(Event event) {
         AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
         if (alarmManager == null) return;
@@ -461,43 +481,27 @@ public class MainActivity extends AppCompatActivity implements CalendarAdapter.O
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 this,
-                (int) event.getId(),
+                event.getId(),
                 intent,
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
         long remindTime = event.getRemindTime();
         if (remindTime > System.currentTimeMillis()) {
-            alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    remindTime,
-                    pendingIntent
-            );
+            try {
+                alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        remindTime,
+                        pendingIntent
+                );
+                android.util.Log.d("AlarmSet", "设置闹钟成功 - Event ID: " + event.getId() + ", 时间: " + remindTime + ", PendingIntent ID: " + event.getId());
+            } catch (Exception e) {
+                android.util.Log.e("AlarmSet", "设置闹钟失败: " + e.getMessage());
+            }
         }
-    }
-
-    private void updateAlarm(Event event) {
-        cancelAlarm(event);
-        setAlarm(event);
-    }
-
-    private void cancelAlarm(Event event) {
-        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        if (alarmManager == null) return;
-
-        Intent intent = new Intent(this, AlarmReceiver.class);
-        PendingIntent pendingIntent = PendingIntent.getBroadcast(
-                this,
-                (int) event.getId(),
-                intent,
-                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
-        );
-        alarmManager.cancel(pendingIntent);
     }
 
     public interface TimeSetListener {
         void onTimeSet(String time);
     }
 }
-
-
