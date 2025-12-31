@@ -76,70 +76,28 @@ public class CalendarAdapter extends RecyclerView.Adapter<CalendarAdapter.Calend
         } else {
             holder.dayOfMonth.setTextColor(Color.BLACK);
         }
-        
-        // 设置不同的文本颜色和背景
+        // 设置不同的文本颜色
         if (dayText.isEmpty()) {
-            // 非当前月份的日期
             holder.dayOfMonth.setTextColor(Color.TRANSPARENT);
             holder.dayOfMonth.setBackgroundResource(0);
-            holder.lunarDayOfMonth.setText(""); // 不显示农历
         } else {
-            try {
-                // 计算对应的农历日期
-                int day = Integer.parseInt(dayText);
-                int year = currentCalendar.get(Calendar.YEAR);
-                int month = currentCalendar.get(Calendar.MONTH) + 1; // 转换为1-based
-                
-                // 检查是否是农历月份的第一天
-                boolean isLunarMonthFirstDay = com.example.mycalendarapp.utils.DateUtils.isLunarMonthFirstDay(year, month, day);
-                
-                // 根据是否是农历月份第一天设置不同的显示格式
-                String lunarDate;
-                if (isLunarMonthFirstDay) {
-                    // 农历月份第一天既显示月份又显示日
-                    String monthName = com.example.mycalendarapp.utils.DateUtils.getLunarMonthName(year, month, day);
-                    String dayName = com.example.mycalendarapp.utils.DateUtils.getLunarDayName(year, month, day);
-                    lunarDate = monthName + dayName;
-                } else {
-                    // 其他日子只显示日
-                    lunarDate = com.example.mycalendarapp.utils.DateUtils.getLunarDayName(year, month, day);
-                }
-                
-                holder.lunarDayOfMonth.setText(lunarDate);
-                
-                // 检查是否是今天
-                boolean isToday = position == todayPosition;
-                // 检查是否是选中的日期
-                boolean isSelected = position == selectedPosition;
+            // 检查是否是今天
+            boolean isToday = position == todayPosition;
+            // 检查是否是选中的日期
+            boolean isSelected = position == selectedPosition;
 
-                if (isSelected) {
-                    // 选中日期使用深蓝色
-                    holder.dayOfMonth.setTextColor(Color.WHITE);
-                    holder.dayOfMonth.setBackgroundResource(R.drawable.selected_background);
-                    holder.lunarDayOfMonth.setTextColor(Color.WHITE);
-                } else if (isToday) {
-                    // 今天使用浅蓝色（但不是选中状态）
-                    holder.dayOfMonth.setTextColor(Color.BLUE);
-                    holder.dayOfMonth.setBackgroundResource(R.drawable.today_background);
-                    // 如果是今天且是农历月份第一天，使用特殊颜色
-                    if (isLunarMonthFirstDay) {
-                        holder.lunarDayOfMonth.setTextColor(Color.RED); // 农历月份第一天使用红色
-                    } else {
-                        holder.lunarDayOfMonth.setTextColor(Color.GRAY);
-                    }
-                } else {
-                    // 其他日期普通显示
-                    holder.dayOfMonth.setTextColor(Color.BLACK);
-                    holder.dayOfMonth.setBackgroundResource(0);
-                    // 如果是农历月份第一天，使用特殊颜色
-                    if (isLunarMonthFirstDay) {
-                        holder.lunarDayOfMonth.setTextColor(Color.RED); // 农历月份第一天使用红色
-                    } else {
-                        holder.lunarDayOfMonth.setTextColor(Color.GRAY);
-                    }
-                }
-            } catch (NumberFormatException e) {
-                holder.lunarDayOfMonth.setText("");
+            if (isSelected) {
+                // 选中日期使用深蓝色
+                holder.dayOfMonth.setTextColor(Color.WHITE);
+                holder.dayOfMonth.setBackgroundResource(R.drawable.selected_background);
+            } else if (isToday) {
+                // 今天使用浅蓝色（但不是选中状态）
+                holder.dayOfMonth.setTextColor(Color.BLUE);
+                holder.dayOfMonth.setBackgroundResource(R.drawable.today_background);
+            } else {
+                // 其他日期普通显示
+                holder.dayOfMonth.setTextColor(Color.BLACK);
+                holder.dayOfMonth.setBackgroundResource(0);
             }
         }
     }
@@ -155,13 +113,11 @@ public class CalendarAdapter extends RecyclerView.Adapter<CalendarAdapter.Calend
 
     public static class CalendarViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
         public TextView dayOfMonth;
-        public TextView lunarDayOfMonth;
         private OnItemListener onItemListener;
 
         public CalendarViewHolder(@NonNull View itemView, OnItemListener onItemListener) {
             super(itemView);
             dayOfMonth = itemView.findViewById(R.id.cellDayText);
-            lunarDayOfMonth = itemView.findViewById(R.id.cellLunarDayText);
             this.onItemListener = onItemListener;
             itemView.setOnClickListener(this);
         }
